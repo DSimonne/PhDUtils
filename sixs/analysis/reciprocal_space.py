@@ -528,6 +528,8 @@ class Map:
         x_ticks_rotation=None,
         y_ticks_rotation=None,
         texts=False,
+	aspect='equal',
+	origin='lower',
     ):
         """
         Plot/save a hdf5 map.
@@ -569,6 +571,8 @@ class Map:
         :param y_ticks_rotation:
         :param texts: use to put a label on the image, list of tuple of length 5
             that follows (x, y, string, fontsize, color) e.g., (1, 1, a), 15, "w")
+	:param aspect: {'equal', 'auto'} or float, The aspect ratio of the Axes.
+	:param origin: {'upper', 'lower'}
         """
         try:
             img = self.projected_data
@@ -666,10 +670,10 @@ class Map:
                 self.img,
                 cmap=cmap,
                 interpolation=interpolation,
-                origin="lower",
+                origin=origin,
                 norm=LogNorm(vmin=vmin, vmax=vmax),
                 extent=[axis1.min(), axis1.max(), axis2.min(), axis2.max()],
-                aspect="equal",
+                aspect=aspect,
             )
 
         if texts:
@@ -2426,3 +2430,4 @@ def add_colorbar(im, aspect=15, pad_fraction=0.5, **kwargs):
         cbar.ax.ticklabel_format(style='plain', scilimits=(0, 0))
 
     return cbar
+
