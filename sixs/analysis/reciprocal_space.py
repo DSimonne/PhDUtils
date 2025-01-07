@@ -125,8 +125,9 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from matplotlib import patches
 import matplotlib.ticker as ticker
+from matplotlib.ticker import LogLocator, LogFormatter
+from matplotlib import patches
 from mpl_toolkits import axes_grid1
 
 import ipywidgets as widgets
@@ -163,9 +164,9 @@ class Map:
         Loads the data arrays from the binoculars file.
 
         Two arrays are loaded:
-            * `ct`: counts, total intensity count in a region of reciprocal 
-                space 
-            * `cont`: contribution, number of voxels that contributed to 
+            * `ct`: counts, total intensity count in a region of reciprocal
+                space
+            * `cont`: contribution, number of voxels that contributed to
                 this region in reciprocal space
 
         :param file_path: full path to .hdf5 file
@@ -402,19 +403,19 @@ class Map:
         projection_axis_range=[None, None],
     ):
         """
-        Project the data on one of the measured axis, the result is saved as 
+        Project the data on one of the measured axis, the result is saved as
         a numpy.array() attribute :`projected_data`.
 
         The projection is done by FIRST summing the counts and contribution over
         the defined range and THEN by dividing the summed counts by the summed
         contribution.
 
-        Be very careful of the selected range to not drown signal. Especially in 
+        Be very careful of the selected range to not drown signal. Especially in
         L.
 
         In general, the binning should be done in binoculars process.
 
-        This is exactly the same as what is performed in binoculars for the 
+        This is exactly the same as what is performed in binoculars for the
         version installed at SixS: `0.0.11-1~bpo11+1soleil1`.
 
         If you want to save the data manually, you can use :
@@ -533,12 +534,12 @@ class Map:
 
         Saves the zoomed image as `img` attribute.
 
-        You can use the command `%matplotlib notebook` to use a cursor in the 
+        You can use the command `%matplotlib notebook` to use a cursor in the
         notebook cell (change figsize to (8,8)).
 
-        :param zoom_axis1: container of length two, defines the zoom in the x 
+        :param zoom_axis1: container of length two, defines the zoom in the x
          axis.
-        :param zoom_axis2: container of length two, defines the zoom in the y 
+        :param zoom_axis2: container of length two, defines the zoom in the y
          axis.
         :param interpolation: default is 'none'. See plt.imshow? for options,
             other options are 'nearest', 'gouraud', ...
@@ -687,6 +688,7 @@ class Map:
         try:
             cbar = add_colorbar(plotted_img)
             cbar.ax.tick_params(labelsize=15)
+            cbar.set_ticks(LogLocator(base=10.0))  # Ensure ticks are on a log scale
         except ValueError:
             print("Could not display colorbar, change scale values.")
             pass
@@ -970,7 +972,7 @@ class CTR:
         configuration_file=False,
     ):
         """
-        Init the class with a configuration file that is usefull to keep the 
+        Init the class with a configuration file that is usefull to keep the
         same colors depending on the conditions.
 
         :param configuration_file: default is False. `.yml` file that stores
@@ -1723,7 +1725,7 @@ class CTR:
         :param plot_style: if "scatter", scatter plot, else "line"
         :param size: size of markers
         :param legend: add a legend to the plot
-        :param legend_position: choose in ('left', 'right', 'center', 'above', 
+        :param legend_position: choose in ('left', 'right', 'center', 'above',
             'below')
         :param figure_width: in pixels, default is 900
         :param figure_height: in pixels, default is 500
@@ -2393,19 +2395,34 @@ def show_par_files(
     return dfs[best_index], chi_squares[best_index]
 
 
-
 def add_colorbar(im, aspect=15, pad_fraction=0.5, **kwargs):
-    """Add a vertical color bar to an image plot."""
+    """Add a vertical color bar to an image plot with support for log scale."""
+    # Create a colorbar axis
     divider = axes_grid1.make_axes_locatable(im.axes)
-    width = axes_grid1.axes_size.AxesY(im.axes, aspect=1./aspect)
+    width = axes_grid1.axes_size.AxesY(im.axes, aspect=1.0 / aspect)
     pad = axes_grid1.axes_size.Fraction(pad_fraction, width)
     current_ax = plt.gca()
     cax = divider.append_axes("right", size=width, pad=pad)
     plt.sca(current_ax)
+
+    # Create the colorbar
     cbar = im.axes.figure.colorbar(im, cax=cax, **kwargs)
-    cbar.ax.yaxis.set_major_locator(ticker.AutoLocator())
-    cbar.ax.yaxis.set_minor_locator(ticker.AutoLocator())
-    cbar.ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True, useOffset=True))
-    cbar.ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
-    cbar.ax.ticklabel_format(style='plain', scilimits=(0, 0))
+
+    # Check if the normalization is LogNorm
+    if isinstance(im.norm, LogNorm):
+        # Set log-scale ticks and labels
+        log_locator = LogLocator(base=10.0, subs=[1.0, 2.0, 5.0], numticks=10)  # Major and minor ticks
+        log_formatter = LogFormatter(base=10.0, labelOnlyBase=False)  # Display all labels
+
+        cbar.ax.yaxis.set_major_locator(log_locator)
+        cbar.ax.yaxis.set_major_formatter(log_formatter)
+        cbar.ax.yaxis.set_minor_locator(log_locator)
+
+    else:
+        # Default behavior for linear normalization
+        cbar.ax.yaxis.set_major_locator(ticker.AutoLocator())
+        cbar.ax.yaxis.set_minor_locator(ticker.AutoLocator())
+        cbar.ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True, useOffset=True))
+        cbar.ax.ticklabel_format(style='plain', scilimits=(0, 0))
+
     return cbar
